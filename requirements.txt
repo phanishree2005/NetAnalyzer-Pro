@@ -1,0 +1,17 @@
+# Network Protocol Analyzer — Python Dependencies
+# Install with: pip install -r requirements.txt
+# Requires Python 3.10+
+
+# ── Packet capture ────────────────────────────────────────────────────────────
+scapy>=2.5.0                  # Packet sniffing + protocol decoding
+
+# ── UI ───────────────────────────────────────────────────────────────────────
+streamlit>=1.32.0             # Dashboard framework
+plotly>=5.18.0                # Interactive charts (pie + time-series)
+pandas>=2.0.0                 # DataFrame for packet table
+
+# ── Optional — faster interface discovery ────────────────────────────────────
+psutil>=5.9.0                 # Interface enumeration fallback
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+# (stdlib only beyond this point — sqlite3, threading, queue, logging, etc.)

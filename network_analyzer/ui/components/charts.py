@@ -38,7 +38,7 @@ def render_protocol_pie(counts: Dict[str,int]) -> None:
         title=dict(text="Protocol Mix",font=dict(size=13,color="#111827"),x=0.5),
         legend=dict(font=dict(size=11),bgcolor="#FFFFFF",
                     bordercolor="#E5E7EB",borderwidth=1))
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, use_container_width=True)
 
 
 def render_throughput_chart(history: List[Tuple[float,float,float]]) -> None:
@@ -72,4 +72,4 @@ def render_throughput_chart(history: List[Tuple[float,float,float]]) -> None:
                     bordercolor="#E5E7EB",borderwidth=1),
         hovermode="x unified",
     )
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, use_container_width=True)

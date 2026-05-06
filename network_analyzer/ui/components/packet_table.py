@@ -60,7 +60,7 @@ border-radius:12px;border:1px solid #E5E7EB">
         return styles
 
     styled = df.style.apply(_row_style, axis=1)
-    st.dataframe(styled, width='stretch', height=440, hide_index=True)
+    st.dataframe(styled, use_container_width=True, height=440, hide_index=True)
     st.caption(f"Showing {len(rows):,} of {len(records):,} packets · newest first")
 
 def _ts(ts):

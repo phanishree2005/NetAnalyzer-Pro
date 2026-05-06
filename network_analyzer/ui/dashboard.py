@@ -230,15 +230,15 @@ def _sidebar():
 
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("▶ Start", width='stretch', key="btn_start",
+            if st.button("▶ Start", use_container_width=True, key="btn_start",
                          disabled=ss.is_running):
                 _start(iface if iface != "<none>" else "", bpf)
                 st.rerun()
         with c2:
-            if st.button("■ Stop", width='stretch', key="btn_stop",
+            if st.button("■ Stop", use_container_width=True, key="btn_stop",
                          disabled=not ss.is_running):
                 _stop(); st.rerun()
-        if st.button("🗑 Clear Buffer", width='stretch', key="btn_clear"):
+        if st.button("🗑 Clear Buffer", use_container_width=True, key="btn_clear"):
             ss.buffer.clear(); ss.stats.reset()
             ss.anomaly.clear_alerts(); ss.sessions.reset()
             ss.tph.clear(); st.rerun()
@@ -267,11 +267,11 @@ def _sidebar():
         st.markdown("**💾 Export**")
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("CSV", width='stretch', key="btn_csv"):
+            if st.button("CSV", use_container_width=True, key="btn_csv"):
                 n = ss.store.export_csv("packets_export.csv", ss.filters.matches)
                 st.success(f"{n} rows") if n else st.warning("Empty")
         with c2:
-            if st.button("JSON", width='stretch', key="btn_json"):
+            if st.button("JSON", use_container_width=True, key="btn_json"):
                 n = ss.store.export_json("packets_export.json", ss.filters.matches)
                 st.success(f"{n} rows") if n else st.warning("Empty")
 
@@ -404,7 +404,7 @@ def _tab_analytics(snap):
              "Bytes (est)": f"{c*500/1024:.0f} KB"}
             for ip, c in sorted(snap.top_talkers.items(), key=lambda x: -x[1])
         ])
-        st.dataframe(df, width='stretch', hide_index=True)
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
 
 def _tab_alerts(alerts):
@@ -487,7 +487,7 @@ def _tab_sessions():
         return "color:#6B7280"
 
     st.dataframe(df.style.map(_sty, subset=["State"]),
-                 width='stretch', height=420, hide_index=True)
+                 use_container_width=True, height=420, hide_index=True)
     active = sum(1 for s in smap.values() if s.state=="ACTIVE")
     st.caption(f"{len(rows)} sessions  ·  {active} active")
 
