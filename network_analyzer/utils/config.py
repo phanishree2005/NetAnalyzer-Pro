@@ -15,6 +15,7 @@ class CaptureConfig:
     default_bpf_filter: str = ""
     raw_queue_maxsize: int = 50_000      # max raw packets queued before drop
     snap_length: int = 65_535            # bytes captured per packet
+    simulation_mode: bool = False        # if True, generate fake traffic
 
 
 @dataclass

@@ -131,6 +131,7 @@ button[data-baseweb="tab"][aria-selected="true"] {
 """, unsafe_allow_html=True)
 
 from capture.sniffer import PacketSniffer
+from capture.simulator import TrafficSimulator
 from capture.interface import get_interfaces, get_default_interface
 from processing.parser import PacketParser
 from analysis.stats import StatisticsEngine
@@ -152,20 +153,22 @@ logger = get_logger(__name__)
 def _init():
     if "initialized" in st.session_state:
         return
+    ss = st.session_state
     cfg = DEFAULT_CONFIG
-    st.session_state.sniffer      = PacketSniffer(config=cfg.capture)
-    st.session_state.buffer       = PacketBuffer(config=cfg.buffer)
-    st.session_state.stats        = StatisticsEngine(config=cfg.stats)
-    st.session_state.anomaly      = AnomalyDetector(config=cfg.anomaly)
-    st.session_state.sessions     = SessionTracker()
-    st.session_state.store        = DataStore(config=cfg.store, buffer=st.session_state.buffer)
-    st.session_state.store.start()
-    st.session_state.parser       = None
-    st.session_state.cstop        = None
-    st.session_state.is_running   = False
-    st.session_state.filters      = FilterState()
-    st.session_state.tph: List[Tuple[float,float,float]] = []
-    st.session_state.initialized  = True
+    ss.sniffer      = PacketSniffer(config=cfg.capture)
+    ss.simulator    = TrafficSimulator(config=cfg.capture)
+    ss.buffer       = PacketBuffer(config=cfg.buffer)
+    ss.stats        = StatisticsEngine(config=cfg.stats)
+    ss.anomaly      = AnomalyDetector(config=cfg.anomaly)
+    ss.sessions     = SessionTracker()
+    ss.store        = DataStore(config=cfg.store, buffer=ss.buffer)
+    ss.store.start()
+    ss.parser       = None
+    ss.cstop        = None
+    ss.is_running   = False
+    ss.filters      = FilterState()
+    ss.tph: List[Tuple[float,float,float]] = []
+    ss.initialized  = True
 _init()
 
 
@@ -181,8 +184,18 @@ def _consumer(q, buf, stats, anomaly, sess, store, stop):
 
 def _start(iface, bpf):
     ss = st.session_state
-    ss.sniffer.start(interface=iface, bpf_filter=bpf)
-    p = PacketParser(raw_queue=ss.sniffer.get_queue())
+    # Decide between real sniffer and simulator
+    engine = ss.simulator if DEFAULT_CONFIG.capture.simulation_mode else ss.sniffer
+    
+    try:
+        engine.start(interface=iface, bpf_filter=bpf)
+    except Exception as e:
+        st.error(f"Failed to start: {e}")
+        if not DEFAULT_CONFIG.capture.simulation_mode:
+            st.info("Try enabling 'Simulation Mode' if you don't have root privileges.")
+        return
+
+    p = PacketParser(raw_queue=engine.get_queue())
     p.start(); ss.parser = p
     stop = threading.Event(); ss.cstop = stop
     threading.Thread(target=_consumer,
@@ -196,7 +209,9 @@ def _stop():
     ss = st.session_state
     if ss.cstop: ss.cstop.set()
     if ss.parser: ss.parser.stop()
-    ss.sniffer.stop(); ss.is_running = False
+    ss.sniffer.stop()
+    ss.simulator.stop()
+    ss.is_running = False
 
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -220,13 +235,23 @@ def _sidebar():
         st.markdown("<br/>", unsafe_allow_html=True)
 
         st.markdown("**🖥 Capture Settings**")
+        
+        # Simulation Mode Toggle
+        DEFAULT_CONFIG.capture.simulation_mode = st.toggle(
+            "Simulation Mode (Demo)", 
+            value=DEFAULT_CONFIG.capture.simulation_mode,
+            help="Enable if running on a hosted platform like Vercel."
+        )
+
         ifaces = get_interfaces()
         def_i  = get_default_interface() or (ifaces[0] if ifaces else "")
         idx    = ifaces.index(def_i) if def_i in ifaces else 0
         iface  = st.selectbox("Interface", ifaces or ["<none>"],
-                              index=idx, disabled=ss.is_running, key="iface_sel")
+                               index=idx, disabled=ss.is_running or DEFAULT_CONFIG.capture.simulation_mode, 
+                               key="iface_sel")
         bpf    = st.text_input("BPF Filter", placeholder='e.g. "tcp port 443"',
-                               disabled=ss.is_running, key="bpf_sel")
+                               disabled=ss.is_running or DEFAULT_CONFIG.capture.simulation_mode, 
+                               key="bpf_sel")
 
         c1, c2 = st.columns(2)
         with c1:
@@ -496,36 +521,42 @@ def _tab_sessions():
 _sidebar()
 ph = st.empty()
 
-while True:
-    with ph.container():
-        ss   = st.session_state
-        snap = ss.stats.get_snapshot()
-        alrts= ss.anomaly.get_alerts()
-        active = ss.sessions.get_active_count()
-        filtered = [r for r in ss.buffer.get_recent(DEFAULT_CONFIG.ui.max_table_rows*5)
-                    if ss.filters.matches(r)]
+# For local development, while True works. 
+# For Cloud/Vercel, we need to be careful not to block forever.
+# But since Streamlit runs as a process, it's usually fine UNLESS we hit serverless limits.
+# To ensure it works on Vercel, we can add a 'last_update' check or just rely on rerun.
 
-        _header(snap)
-        _kpi_row(snap, alrts, active)
-        st.markdown("<br/>", unsafe_allow_html=True)
+with ph.container():
+    ss   = st.session_state
+    snap = ss.stats.get_snapshot()
+    alrts= ss.anomaly.get_alerts()
+    active = ss.sessions.get_active_count()
+    filtered = [r for r in ss.buffer.get_recent(DEFAULT_CONFIG.ui.max_table_rows*5)
+                if ss.filters.matches(r)]
 
-        # Insights panel
-        with st.container():
-            st.markdown('<div class="panel">', unsafe_allow_html=True)
-            _insights(snap, alrts)
-            st.markdown('</div>', unsafe_allow_html=True)
+    _header(snap)
+    _kpi_row(snap, alrts, active)
+    st.markdown("<br/>", unsafe_allow_html=True)
 
-        # Main tabs
-        t1,t2,t3,t4 = st.tabs([
-            f"📋 Packets ({len(filtered):,})",
-            "📊 Analytics",
-            f"🚨 Alerts ({len(alrts)})",
-            f"🔗 Sessions ({active})",
-        ])
-        with t1: _tab_packets(filtered, snap)
-        with t2: _tab_analytics(snap)
-        with t3: _tab_alerts(alrts)
-        with t4: _tab_sessions()
+    # Insights panel
+    with st.container():
+        st.markdown('<div class="panel">', unsafe_allow_html=True)
+        _insights(snap, alrts)
+        st.markdown('</div>', unsafe_allow_html=True)
 
+    # Main tabs
+    t1,t2,t3,t4 = st.tabs([
+        f"📋 Packets ({len(filtered):,})",
+        "📊 Analytics",
+        f"🚨 Alerts ({len(alrts)})",
+        f"🔗 Sessions ({active})",
+    ])
+    with t1: _tab_packets(filtered, snap)
+    with t2: _tab_analytics(snap)
+    with t3: _tab_alerts(alrts)
+    with t4: _tab_sessions()
+
+# Auto-refresh logic
+if ss.is_running:
     time.sleep(DEFAULT_CONFIG.ui.refresh_interval_seconds)
     st.rerun()
