@@ -1,5 +1,6 @@
 {
+  "cleanUrls": true,
   "rewrites": [
-    { "src": "/(.*)", "dest": "/api/index.py" }
+    { "src": "/(.*)", "dest": "/public/index.html" }
   ]
 }
