@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>NetAnalyzer Pro | Live Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.39.1/build/stlite.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.39.1/build/stlite.js"></script>
+    <script>
+      stlite.mount({
+        requirements: ["plotly", "pandas"],
+        entrypoint: "ui/dashboard.py",
+        files: {
+          "ui/dashboard.py": `
+import streamlit as st
+import time, random, pandas as pd
+import plotly.express as px
+
+st.set_page_config(page_title="NetAnalyzer Pro", page_icon="🔬", layout="wide")
+
+# Custom CSS for the White SaaS look
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    .stApp { background: #F9FAFB; }
+    .kpi-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #E5E7EB; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+</style>
+""", unsafe_allow_html=True)
+
+st.title("🔬 NetAnalyzer Pro — Portfolio Demo")
+st.info("Note: This is a browser-based simulation for Vercel. For live capture, run the app locally.")
+
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Total Packets", f"{random.randint(5000, 10000):,}")
+col2.metric("Packets/sec", f"{random.uniform(20, 100):.1f}")
+col3.metric("Throughput", f"{random.uniform(1, 5):.1f} MB/s")
+col4.metric("Active Sessions", random.randint(5, 20))
+
+# Mock Graph
+df = pd.DataFrame({
+    'Time': pd.date_range(start='1/1/2024', periods=20, freq='S'),
+    'Packets': [random.randint(10, 100) for _ in range(20)]
+})
+fig = px.line(df, x='Time', y='Packets', title="Real-time Traffic (Simulated)")
+st.plotly_chart(fig, use_container_width=True)
+
+st.success("Successfully deployed to Vercel!")
+          `
+        }
+      }, document.getElementById("root"));
+    </script>
+  </body>
+</html>
