@@ -29,7 +29,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-▶️ How to Run
+▶️ How to Run...
 UI Mode (default — launches Streamlit dashboard)
 ```bash
 # Windows — run as Administrator
